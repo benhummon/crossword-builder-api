@@ -72,7 +72,6 @@ exports.SuggestionsLists = class SuggestionsLists {
     const length = pattern.length;
     const regExp = buildRegExp(pattern);
     const words = await this.app.service('words').find({ length, regExp });
-    // const words = await this.app.service('words-nedb').find({ length, regExp });
     for (const word of words) {
       lettersSet.add(word.charAt(index));
     }
@@ -106,7 +105,6 @@ exports.SuggestionsLists = class SuggestionsLists {
   async _hasMatchInDictionary(regExpPattern) {
     const length = regExpPattern.length;
     const words = await this.app.service('words').find({ length });
-    // const words = await this.app.service('words-nedb').find({ length });
     const regExp = new RegExp(`^${regExpPattern}$`);
     for (const word of words) {
       if (regExp.test(word)) return true;
