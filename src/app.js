@@ -24,7 +24,9 @@ app.configure(configuration());
 app.use(helmet({
   contentSecurityPolicy: false
 }));
-app.use(cors());
+// !!!
+app.use(cors({ origin: 'http://localhost:3000' , credentials :  true,  methods: 'GET,PUT,POST,OPTIONS', allowedHeaders: 'Content-Type,Authorization' }));
+// app.use(cors({ origin: 'http://localhost:3000' }));
 app.use(compress());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
