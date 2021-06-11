@@ -5,6 +5,7 @@ const { firstCharacter, lastCharacter, trimFirstCharacter, trimLastCharacter } =
 const { buildUppercaseAlphabet, filledSquareCharacter } = require('../../utilities/alphabet');
 const { remainderAndQuotient } = require('../../utilities/math');
 const { inclusiveIndicesArray } = require('../../utilities/arrays');
+const promiseHash = require('promise-hash/lib/promise-hash');
 
 exports.SuggestionsLists = class SuggestionsLists {
   constructor (options, app) {
@@ -13,29 +14,49 @@ exports.SuggestionsLists = class SuggestionsLists {
 
   async create(data, params) {
     const initialTimeStamp = Date.now();
-    const suggestions = await this._computeSuggestions(data);
+    const suggestions = await this._suggestions(data);
     console.log('Search Took', Date.now() - initialTimeStamp);
     return suggestions;
   }
 
-  async _computeSuggestions(data) {
+  async _suggestions(data) {
     if (typeof data.activeSquareIndex !== 'number') return [];
     const board = buildBoardObject(data);
+    if (data.canSuggestFill) {
+      return await this._suggestionsCanSuggestFill(board);
+    } else {
+      return await this._suggestionsCannotSuggestFill(board);
+    }
+  }
+
+  async _suggestionsCanSuggestFill(board) {
     const horizontalPattern = computeHorizontalPattern(board, leftBound(board), rightBound(board));
     const verticalPattern = computeVerticalPattern(board, topBound(board), bottomBound(board));
-    if (data.canSuggestFill) {
-      const horizontalSuggestionsSet = await this._findSuggestions2(horizontalPattern);
-      const verticalSuggestionsSet = await this._findSuggestions2(verticalPattern);
-      const letterSuggestions = toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
-      const suggestFill = await this._suggestFill(board);
-      const suggestions = suggestFill ? [filledSquareCharacter].concat(letterSuggestions) : letterSuggestions;
-      return suggestions;
-    } else {
-      const horizontalSuggestionsSet = await this._findSuggestions1(horizontalPattern);
-      const verticalSuggestionsSet = await this._findSuggestions1(verticalPattern);
-      const suggestions = toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
-      return suggestions;
-    }
+    const {
+      horizontalSuggestionsSet,
+      verticalSuggestionsSet,
+      suggestFill
+    } = await promiseHash({
+      horizontalSuggestionsSet: this._findSuggestions2(horizontalPattern),
+      verticalSuggestionsSet: this._findSuggestions2(verticalPattern),
+      suggestFill: this._suggestFill(board)
+    });
+    const letterSuggestions = toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
+    if (suggestFill) return letterSuggestions.concat(filledSquareCharacter);
+    return letterSuggestions;
+  }
+
+  async _suggestionsCannotSuggestFill(board) {
+    const horizontalPattern = computeHorizontalPattern(board, leftBound(board), rightBound(board));
+    const verticalPattern = computeVerticalPattern(board, topBound(board), bottomBound(board));
+    const {
+      horizontalSuggestionsSet,
+      verticalSuggestionsSet,
+    } = await promiseHash({
+      horizontalSuggestionsSet: this._findSuggestions1(horizontalPattern),
+      verticalSuggestionsSet: this._findSuggestions1(verticalPattern),
+    });
+    return toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
   }
 
   async _suggestFill(board) {
@@ -71,7 +92,7 @@ exports.SuggestionsLists = class SuggestionsLists {
     const index = pattern.indexOf('@');
     const length = pattern.length;
     const regExp = buildRegExp(pattern);
-    const words = await this.app.service('words').find({ length, regExp });
+    const words = await this.app.service('words').find({ length, regExp }); // !!! this should not be here
     for (const word of words) {
       lettersSet.add(word.charAt(index));
     }
