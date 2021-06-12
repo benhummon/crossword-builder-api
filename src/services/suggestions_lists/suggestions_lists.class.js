@@ -11,6 +11,13 @@ const {
   trimFirstCharacter, trimLastCharacter
 } = require('../../utilities/strings');
 const { buildUppercaseAlphabet, filledSquareCharacter } = require('../../utilities/alphabet');
+const { isNumber } = require('../../utilities/math');
+
+function toLettersArray(setA, setB) {
+  return buildUppercaseAlphabet().filter(
+    letter => setA.has(letter) && setB.has(letter)
+  );
+}
 
 exports.SuggestionsLists = class SuggestionsLists {
   constructor (options, app) {
@@ -29,13 +36,26 @@ exports.SuggestionsLists = class SuggestionsLists {
   }
 
   async _suggestions(data) {
-    if (typeof data.activeSquareIndex !== 'number') return [];
+    if (! isNumber(data.activeSquareIndex)) return [];
     const board = buildBoardObject(data);
     if (board.canSuggestFill) {
       return await this._suggestionsCanSuggestFill(board);
     } else {
       return await this._suggestionsCannotSuggestFill(board);
     }
+  }
+
+  async _suggestionsCannotSuggestFill(board) {
+    const horizontalPattern = computeHorizontalPattern(board, leftBound(board), rightBound(board));
+    const verticalPattern = computeVerticalPattern(board, topBound(board), bottomBound(board));
+    const [
+      horizontalSuggestionsSet,
+      verticalSuggestionsSet,
+    ] = await Promise.all([
+      this._suggestionsSetForPattern(horizontalPattern),
+      this._suggestionsSetForPattern(verticalPattern)
+    ]);
+    return toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
   }
 
   async _suggestionsCanSuggestFill(board) {
@@ -46,8 +66,8 @@ exports.SuggestionsLists = class SuggestionsLists {
       verticalSuggestionsSet,
       suggestFill
     ] = await Promise.all([
-      this._findSuggestions2(horizontalPattern),
-      this._findSuggestions2(verticalPattern),
+      this._suggestionsSetForAllSubpatterns(horizontalPattern),
+      this._suggestionsSetForAllSubpatterns(verticalPattern),
       this._suggestFill(board)
     ]);
     const letterSuggestions = toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
@@ -55,28 +75,11 @@ exports.SuggestionsLists = class SuggestionsLists {
     return letterSuggestions;
   }
 
-  async _suggestionsCannotSuggestFill(board) {
-    const horizontalPattern = computeHorizontalPattern(board, leftBound(board), rightBound(board));
-    const verticalPattern = computeVerticalPattern(board, topBound(board), bottomBound(board));
-    const [
-      horizontalSuggestionsSet,
-      verticalSuggestionsSet,
-    ] = await Promise.all([
-      this._findSuggestions1(horizontalPattern),
-      this._findSuggestions1(verticalPattern)
-    ]);
-    return toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
-  }
-
-  async _findSuggestions1(pattern) {
-    return await this._findSuggestionsHelper(pattern);
-  }
-
-  async _findSuggestions2(pattern) {
+  async _suggestionsSetForAllSubpatterns(pattern) {
     const lettersSet = new Set();
     const subpatterns = computeSubpatterns(pattern);
     for (const subpattern of subpatterns) {
-      const lettersSetForSubpattern = await this._findSuggestionsHelper(subpattern);
+      const lettersSetForSubpattern = await this._suggestionsSetForPattern(subpattern);
       for (const letter of lettersSetForSubpattern) {
         lettersSet.add(letter);
       }
@@ -84,12 +87,15 @@ exports.SuggestionsLists = class SuggestionsLists {
     return lettersSet;
   }
 
-  async _findSuggestionsHelper(pattern) {
+  async _suggestionsSetForPattern(pattern) {
     const lettersSet = new Set();
     const index = pattern.indexOf('@');
     const length = pattern.length;
-    const regExp = buildRegExp(pattern);
-    const words = await this.app.service('words').find({ length, regExp }); // !!! this should not be here
+    const regExpPattern = pattern.split('').map(
+      character => character === '@' ? '.' : character
+    ).join('');
+    const regExp = new RegExp(`^${regExpPattern}$`);
+    const words = await this.app.service('words').find({ length, regExp });
     for (const word of words) {
       lettersSet.add(word.charAt(index));
     }
@@ -144,16 +150,3 @@ exports.SuggestionsLists = class SuggestionsLists {
     }
   }
 };
-
-function toLettersArray(setA, setB) {
-  return buildUppercaseAlphabet().filter(
-    letter => setA.has(letter) && setB.has(letter)
-  );
-}
-
-function buildRegExp(pattern) {
-  const regExpPattern = pattern.split('').map(
-    character => character === '@' ? '.' : character
-  ).join('');
-  return new RegExp(`^${regExpPattern}$`);
-}

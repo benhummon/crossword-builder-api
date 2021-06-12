@@ -1,6 +1,7 @@
 const fs = require('fs');
 const Stream = require('stream');
 const { inclusiveIndicesArray } = require('../../utilities/arrays');
+const { isNumber } = require('../../utilities/math');
 
 const minWordLength = 1;
 const maxWordLength = 10;
@@ -26,7 +27,7 @@ exports.Words = class Words {
   }
 
   _isValidLength(length) {
-    if (typeof length !== 'number') return false;
+    if (! isNumber(length)) return false;
     if (length < minWordLength || length > maxWordLength) return false;
     return true;
   }
