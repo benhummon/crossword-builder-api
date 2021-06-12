@@ -1,6 +1,5 @@
-/* eslint-disable no-unused-vars */
-
 const fs = require('fs');
+const Stream = require('stream');
 const { inclusiveIndicesArray } = require('../../utilities/arrays');
 
 const minWordLength = 1;
@@ -51,17 +50,33 @@ exports.Words = class Words {
     }
   }
 
-  async _loadWordsOfLength(i) {
-    try {
-      const fileName = `word_lists/words${i}.txt`;
-      const fileAsString = fs.readFileSync(fileName, 'utf8');
-      const words = fileAsString.split('\n');
-      this.words_lists[i] = words.filter(
-        word => /[A-Z]+/.test(word)
-      );
-    } catch (error) {
-      console.error(`Error occurred loading words of length ${i}:`, error);
-      return [];
-    }
+  _loadWordsOfLength(i) {
+    this.words_lists[i] = [];
+    return new Promise((resolve, reject) => {
+      const readWordsStream = fs.createReadStream(this._wordsFileName(i));
+      readWordsStream.on('error', (error) => { reject(error); });
+      const storeWordsStream = this._storeWordsStream(this.words_lists[i]);
+      storeWordsStream.on('error', (error) => { reject(error); });
+      storeWordsStream.on('finish', () => { resolve(); });
+      readWordsStream.pipe(storeWordsStream);
+    });
+  }
+
+  _wordsFileName(i) {
+    return `word_lists/words${i}.txt`;
+  }
+
+  _storeWordsStream(array) {
+    const storeWordsStream = new Stream.Writable();
+    storeWordsStream._write = (chunk, encoding, next) => {
+      const words = chunk.toString().split('\n');
+      for (let word of words) {
+        if (/[A-Z]+/.test(word)) {
+          array.push(word);
+        }
+      }
+      next();
+    };
+    return storeWordsStream;
   }
 };
