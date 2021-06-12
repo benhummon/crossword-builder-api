@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-
 const { computeSubpatterns, computeSubpatternsTrimRight, computeSubpatternsTrimLeft } = require('../../utilities/subpatterns');
 const { firstCharacter, lastCharacter, trimFirstCharacter, trimLastCharacter } = require('../../utilities/strings');
 const { buildUppercaseAlphabet, filledSquareCharacter } = require('../../utilities/alphabet');
@@ -12,7 +10,7 @@ exports.SuggestionsLists = class SuggestionsLists {
     this.app = app;
   }
 
-  async create(data, params) {
+  async create(data /*, params */) {
     const initialTimeStamp = Date.now();
     const suggestions = await this._suggestions(data);
     console.log('Search Took', Date.now() - initialTimeStamp);

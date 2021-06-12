@@ -1,3 +1,5 @@
+// Initializes the `suggestions-lists` service on path `/suggestions-lists`
+
 const { SuggestionsLists } = require('./suggestions_lists.class');
 const hooks = require('./suggestions_lists.hooks');
 

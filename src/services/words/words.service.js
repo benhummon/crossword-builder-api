@@ -1,4 +1,5 @@
 // Initializes the `words` service on path `/words`
+
 const { Words } = require('./words.class');
 const hooks = require('./words.hooks');
 

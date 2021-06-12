@@ -1,6 +1,7 @@
 # crossword-builder-api
 
-> 
+This project is the API that backs the Crossword Builder app. In particular, this provides
+the "Suggested letters" functionality.
 
 ## About
 
