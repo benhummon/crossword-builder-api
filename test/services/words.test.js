@@ -2,15 +2,18 @@ const assert = require('assert');
 const app = require('../../src/app');
 const { buildUppercaseAlphabet } = require('../../src/utilities/alphabet');
 
-describe('\'words\' service', () => {
+describe('"words" service', () => {
   it('registered the service', () => {
     const service = app.service('words');
-    assert.ok(service, 'Registered the service');
+    assert.ok(
+      service,
+      'Registered the service'
+    );
   });
 
   it('finds words of length two', async () => {
     const service = app.service('words');
-    const results = await service.find({ length:  2 });
+    const results = await service.find({ length: 2 });
     assert.equal(
       results.length,
       427,
@@ -30,20 +33,6 @@ describe('\'words\' service', () => {
       results,
       buildUppercaseAlphabet(),
       'The words of length one are just the letters of the alphabet'
-    );
-  });
-
-  it('finds words when we include a regular expression', async () => {
-    const service = app.service('words');
-    const results = await service.find({ length: 3, regExp: /^C.D?$/ });
-    assert.equal(
-      results.length,
-      7,
-      'There are many words of length three matching the regular expression'
-    );
-    assert.ok(
-      results.includes('COD'),
-      'The word COD is included in the results'
     );
   });
 

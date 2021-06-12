@@ -13,17 +13,10 @@ exports.Words = class Words {
 
   async find(params) {
     try {
-      const { length, regExp } = params;
-      if (! this._isValidLength(length)) return [];
       await this._ensureWordsLoaded();
-      const words = this._wordsOfLength(length);
-      if (regExp) {
-        return words.filter(
-          word => regExp.test(word)
-        );
-      } else {
-        return words;
-      }
+      const { length } = params;
+      if (! this._isValidLength(length)) return [];
+      return this._wordsOfLength(length);
     } catch (error) {
       console.error('Error occurred in find method of words service:', error);
     }

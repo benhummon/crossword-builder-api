@@ -94,9 +94,9 @@ exports.SuggestionsLists = class SuggestionsLists {
       character => character === '@' ? '.' : character
     ).join('');
     const regExp = new RegExp(`^${regExpPattern}$`);
-    const words = await this.app.service('words').find({ length, regExp });
+    const words = await this.app.service('words').find({ length });
     for (const word of words) {
-      lettersSet.add(word.charAt(index));
+      if (regExp.test(word)) lettersSet.add(word.charAt(index));
     }
     return lettersSet;
   }
