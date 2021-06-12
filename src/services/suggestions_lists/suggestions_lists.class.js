@@ -1,9 +1,16 @@
-const { computeSubpatterns, computeSubpatternsTrimRight, computeSubpatternsTrimLeft } = require('../../utilities/subpatterns');
-const { firstCharacter, lastCharacter, trimFirstCharacter, trimLastCharacter } = require('../../utilities/strings');
+const {
+  computeSubpatterns, computeSubpatternsTrimRight, computeSubpatternsTrimLeft
+} = require('../../utilities/subpatterns');
+const {
+  buildBoardObject,
+  leftBound, rightBound, topBound, bottomBound,
+  computeHorizontalPattern, computeVerticalPattern
+} = require('../../utilities/board');
+const {
+  firstCharacter, lastCharacter,
+  trimFirstCharacter, trimLastCharacter
+} = require('../../utilities/strings');
 const { buildUppercaseAlphabet, filledSquareCharacter } = require('../../utilities/alphabet');
-const { remainderAndQuotient } = require('../../utilities/math');
-const { inclusiveIndicesArray } = require('../../utilities/arrays');
-const promiseHash = require('promise-hash/lib/promise-hash');
 
 exports.SuggestionsLists = class SuggestionsLists {
   constructor (options, app) {
@@ -11,16 +18,20 @@ exports.SuggestionsLists = class SuggestionsLists {
   }
 
   async create(data /*, params */) {
-    const initialTimeStamp = Date.now();
-    const suggestions = await this._suggestions(data);
-    console.log('Search Took', Date.now() - initialTimeStamp);
-    return suggestions;
+    try {
+      const initialTimeStamp = Date.now();
+      const suggestions = await this._suggestions(data);
+      console.log('Search Took', Date.now() - initialTimeStamp);
+      return suggestions;
+    } catch (error) {
+      console.error('Error occured in create method of suggestions-lists service:', error);
+    }
   }
 
   async _suggestions(data) {
     if (typeof data.activeSquareIndex !== 'number') return [];
     const board = buildBoardObject(data);
-    if (data.canSuggestFill) {
+    if (board.canSuggestFill) {
       return await this._suggestionsCanSuggestFill(board);
     } else {
       return await this._suggestionsCannotSuggestFill(board);
@@ -30,15 +41,15 @@ exports.SuggestionsLists = class SuggestionsLists {
   async _suggestionsCanSuggestFill(board) {
     const horizontalPattern = computeHorizontalPattern(board, leftBound(board), rightBound(board));
     const verticalPattern = computeVerticalPattern(board, topBound(board), bottomBound(board));
-    const {
+    const [
       horizontalSuggestionsSet,
       verticalSuggestionsSet,
       suggestFill
-    } = await promiseHash({
-      horizontalSuggestionsSet: this._findSuggestions2(horizontalPattern),
-      verticalSuggestionsSet: this._findSuggestions2(verticalPattern),
-      suggestFill: this._suggestFill(board)
-    });
+    ] = await Promise.all([
+      this._findSuggestions2(horizontalPattern),
+      this._findSuggestions2(verticalPattern),
+      this._suggestFill(board)
+    ]);
     const letterSuggestions = toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
     if (suggestFill) return letterSuggestions.concat(filledSquareCharacter);
     return letterSuggestions;
@@ -47,26 +58,29 @@ exports.SuggestionsLists = class SuggestionsLists {
   async _suggestionsCannotSuggestFill(board) {
     const horizontalPattern = computeHorizontalPattern(board, leftBound(board), rightBound(board));
     const verticalPattern = computeVerticalPattern(board, topBound(board), bottomBound(board));
-    const {
+    const [
       horizontalSuggestionsSet,
       verticalSuggestionsSet,
-    } = await promiseHash({
-      horizontalSuggestionsSet: this._findSuggestions1(horizontalPattern),
-      verticalSuggestionsSet: this._findSuggestions1(verticalPattern),
-    });
+    ] = await Promise.all([
+      this._findSuggestions1(horizontalPattern),
+      this._findSuggestions1(verticalPattern)
+    ]);
     return toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
   }
 
   async _suggestFill(board) {
+    if (! board.canSuggestFill) return false;
     const leftPattern = computeHorizontalPattern(board, leftBound(board), board.activeColumn);
     const rightPattern = computeHorizontalPattern(board, board.activeColumn, rightBound(board));
     const topPattern = computeVerticalPattern(board, topBound(board), board.activeRow);
     const bottomPattern = computeVerticalPattern(board, board.activeRow, bottomBound(board));
-    if (! await this._computeSuggestFillTrimLeft(leftPattern)) return false;
-    if (! await this._computeSuggestFillTrimRight(rightPattern)) return false;
-    if (! await this._computeSuggestFillTrimLeft(topPattern)) return false;
-    if (! await this._computeSuggestFillTrimRight(bottomPattern)) return false;
-    return true;
+    const [fillOkForLeft, fillOkForRight, fillOkForTop, fillOkForBottom] = await Promise.all([
+      this._computeSuggestFillTrimLeft(leftPattern),
+      this._computeSuggestFillTrimRight(rightPattern),
+      this._computeSuggestFillTrimLeft(topPattern),
+      this._computeSuggestFillTrimRight(bottomPattern)
+    ]);
+    return fillOkForLeft && fillOkForRight && fillOkForTop && fillOkForBottom;
   }
 
   async _findSuggestions1(pattern) {
@@ -122,27 +136,14 @@ exports.SuggestionsLists = class SuggestionsLists {
   }
 
   async _hasMatchInDictionary(regExpPattern) {
+    const regExp = new RegExp(`^${regExpPattern}$`);
     const length = regExpPattern.length;
     const words = await this.app.service('words').find({ length });
-    const regExp = new RegExp(`^${regExpPattern}$`);
     for (const word of words) {
       if (regExp.test(word)) return true;
     }
   }
 };
-
-function buildBoardObject(data) {
-  const [activeColumn, activeRow] = remainderAndQuotient(data.activeSquareIndex, data.boardWidth);
-  const board = {
-    squareValues: data.squareValues,
-    width: data.boardWidth,
-    height: data.boardHeight,
-    activeColumn,
-    activeRow,
-    squareValueAt(i, j) { return this.squareValues[j * this.width + i]; }
-  };
-  return board;
-}
 
 function toLettersArray(setA, setB) {
   return buildUppercaseAlphabet().filter(
@@ -155,60 +156,4 @@ function buildRegExp(pattern) {
     character => character === '@' ? '.' : character
   ).join('');
   return new RegExp(`^${regExpPattern}$`);
-}
-
-/* HORIZONTAL */
-
-function leftBound(board) {
-  let i = board.activeColumn;
-  while (i - 1 >= 0 && board.squareValueAt(i - 1, board.activeRow) !== filledSquareCharacter) {
-    i--;
-  }
-  return i;
-}
-
-function rightBound(board) {
-  let i = board.activeColumn;
-  while (i + 1 < board.width && board.squareValueAt(i + 1, board.activeRow) !== filledSquareCharacter) {
-    i++;
-  }
-  return i;
-}
-
-function computeHorizontalPattern(board, from, to) {
-  return inclusiveIndicesArray(from, to).map(i => {
-    const character = board.squareValueAt(i, board.activeRow);
-    if (i === board.activeColumn) return '@';
-    if (character === null) return '.';
-    if (/[A-Z]/.test(character)) return character;
-    throw new Error(`Unexpected character: ${character}`);
-  }).join('');
-}
-
-/* VERTICAL */
-
-function topBound(board) {
-  let j = board.activeRow;
-  while (j - 1 >= 0 && board.squareValueAt(board.activeColumn, j - 1) !== filledSquareCharacter) {
-    j--;
-  }
-  return j;
-}
-
-function bottomBound(board) {
-  let j = board.activeRow;
-  while (j + 1 < board.width && board.squareValueAt(board.activeColumn, j + 1) !== filledSquareCharacter) {
-    j++;
-  }
-  return j;
-}
-
-function computeVerticalPattern(board, from, to) {
-  return inclusiveIndicesArray(from, to).map(j => {
-    const character = board.squareValueAt(board.activeColumn, j);
-    if (j === board.activeRow) return '@';
-    if (character === null) return '.';
-    if (/[A-Z]/.test(character)) return character;
-    throw new Error(`Unexpected character: ${character}`);
-  }).join('');
 }
