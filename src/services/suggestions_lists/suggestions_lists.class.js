@@ -2,9 +2,9 @@ const {
   computeSubpatterns, computeSubpatternsTrimRight, computeSubpatternsTrimLeft
 } = require('../../utilities/subpatterns');
 const {
-  buildBoardObject,
+  buildBoard,
   leftBound, rightBound, topBound, bottomBound,
-  computeHorizontalPattern, computeVerticalPattern
+  horizontalPatternFor, verticalPatternFor
 } = require('../../utilities/board');
 const {
   firstCharacter, lastCharacter,
@@ -26,19 +26,18 @@ exports.SuggestionsLists = class SuggestionsLists {
 
   async create(data /*, params */) {
     try {
-      const initialTimeStamp = Date.now();
-      const suggestions = await this._suggestions(data);
-      console.log('Search Took', Date.now() - initialTimeStamp);
-      return suggestions;
+      return await this._suggestions(data);
     } catch (error) {
       console.error('Error occured in create method of suggestions-lists service:', error);
     }
   }
 
+  // END OF STANDARD METHODS
+
   async _suggestions(data) {
     if (! isNumber(data.activeSquareIndex)) return [];
-    const board = buildBoardObject(data);
-    if (board.canSuggestFill) {
+    const board = buildBoard(data);
+    if (data.canSuggestFill) {
       return await this._suggestionsCanSuggestFill(board);
     } else {
       return await this._suggestionsCannotSuggestFill(board);
@@ -46,33 +45,33 @@ exports.SuggestionsLists = class SuggestionsLists {
   }
 
   async _suggestionsCannotSuggestFill(board) {
-    const horizontalPattern = computeHorizontalPattern(board, leftBound(board), rightBound(board));
-    const verticalPattern = computeVerticalPattern(board, topBound(board), bottomBound(board));
+    const horizontalPattern = horizontalPatternFor(board, leftBound(board), rightBound(board));
+    const verticalPattern = verticalPatternFor(board, topBound(board), bottomBound(board));
     const [
-      horizontalSuggestionsSet,
-      verticalSuggestionsSet,
+      suggestionsSetA,
+      suggestionsSetB,
     ] = await Promise.all([
       this._suggestionsSetForPattern(horizontalPattern),
       this._suggestionsSetForPattern(verticalPattern)
     ]);
-    return toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
+    return toLettersArray(suggestionsSetA, suggestionsSetB);
   }
 
   async _suggestionsCanSuggestFill(board) {
-    const horizontalPattern = computeHorizontalPattern(board, leftBound(board), rightBound(board));
-    const verticalPattern = computeVerticalPattern(board, topBound(board), bottomBound(board));
+    const horizontalPattern = horizontalPatternFor(board, leftBound(board), rightBound(board));
+    const verticalPattern = verticalPatternFor(board, topBound(board), bottomBound(board));
     const [
-      horizontalSuggestionsSet,
-      verticalSuggestionsSet,
+      suggestionsSetA,
+      suggestionsSetB,
       suggestFill
     ] = await Promise.all([
       this._suggestionsSetForAllSubpatterns(horizontalPattern),
       this._suggestionsSetForAllSubpatterns(verticalPattern),
       this._suggestFill(board)
     ]);
-    const letterSuggestions = toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
-    if (suggestFill) return letterSuggestions.concat(filledSquareCharacter);
-    return letterSuggestions;
+    const letters = toLettersArray(suggestionsSetA, suggestionsSetB);
+    if (suggestFill) return letters.concat(filledSquareCharacter);
+    return letters;
   }
 
   async _suggestionsSetForAllSubpatterns(pattern) {
@@ -103,11 +102,10 @@ exports.SuggestionsLists = class SuggestionsLists {
   }
 
   async _suggestFill(board) {
-    if (! board.canSuggestFill) return false;
-    const leftPattern = computeHorizontalPattern(board, leftBound(board), board.activeColumn);
-    const rightPattern = computeHorizontalPattern(board, board.activeColumn, rightBound(board));
-    const topPattern = computeVerticalPattern(board, topBound(board), board.activeRow);
-    const bottomPattern = computeVerticalPattern(board, board.activeRow, bottomBound(board));
+    const leftPattern = horizontalPatternFor(board, leftBound(board), board.activeColumn);
+    const rightPattern = horizontalPatternFor(board, board.activeColumn, rightBound(board));
+    const topPattern = verticalPatternFor(board, topBound(board), board.activeRow);
+    const bottomPattern = verticalPatternFor(board, board.activeRow, bottomBound(board));
     const [fillOkForLeft, fillOkForRight, fillOkForTop, fillOkForBottom] = await Promise.all([
       this._suggestFillTrimLeft(leftPattern),
       this._suggestFillTrimRight(rightPattern),

@@ -16,15 +16,20 @@ exports.Words = class Words {
       const { length, regExp } = params;
       if (! this._isValidLength(length)) return [];
       await this._ensureWordsLoaded();
-      const words = this.words_lists[length];
-      if (! regExp) return words;
-      return words.filter(
-        word => regExp.test(word)
-      );
+      const words = this._wordsOfLength(length);
+      if (regExp) {
+        return words.filter(
+          word => regExp.test(word)
+        );
+      } else {
+        return words;
+      }
     } catch (error) {
       console.error('Error occurred in find method of words service:', error);
     }
   }
+
+  // END OF STANDARD METHODS
 
   _isValidLength(length) {
     if (! isNumber(length)) return false;
@@ -38,9 +43,16 @@ exports.Words = class Words {
     return this._loadingWordsPromise;
   }
 
+  _wordsOfLength(i) {
+    if (! this._wordsLists || ! this._wordsLists[i]) {
+      throw Error('Words lists were not initialized');
+    }
+    return this._wordsLists[i];
+  }
+
   async _loadWords() {
     try {
-      this.words_lists = [];
+      this._wordsLists = [];
       await Promise.all(
         inclusiveIndicesArray(minWordLength, maxWordLength).map(
           i => this._loadWordsOfLength(i)
@@ -52,11 +64,11 @@ exports.Words = class Words {
   }
 
   _loadWordsOfLength(i) {
-    this.words_lists[i] = [];
+    this._wordsLists[i] = [];
     return new Promise((resolve, reject) => {
       const readWordsStream = fs.createReadStream(this._wordsFileName(i));
       readWordsStream.on('error', (error) => { reject(error); });
-      const storeWordsStream = this._storeWordsStream(this.words_lists[i]);
+      const storeWordsStream = this._storeWordsStream(this._wordsLists[i]);
       storeWordsStream.on('error', (error) => { reject(error); });
       storeWordsStream.on('finish', () => { resolve(); });
       readWordsStream.pipe(storeWordsStream);
