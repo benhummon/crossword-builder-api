@@ -68,21 +68,6 @@ exports.SuggestionsLists = class SuggestionsLists {
     return toLettersArray(horizontalSuggestionsSet, verticalSuggestionsSet);
   }
 
-  async _suggestFill(board) {
-    if (! board.canSuggestFill) return false;
-    const leftPattern = computeHorizontalPattern(board, leftBound(board), board.activeColumn);
-    const rightPattern = computeHorizontalPattern(board, board.activeColumn, rightBound(board));
-    const topPattern = computeVerticalPattern(board, topBound(board), board.activeRow);
-    const bottomPattern = computeVerticalPattern(board, board.activeRow, bottomBound(board));
-    const [fillOkForLeft, fillOkForRight, fillOkForTop, fillOkForBottom] = await Promise.all([
-      this._computeSuggestFillTrimLeft(leftPattern),
-      this._computeSuggestFillTrimRight(rightPattern),
-      this._computeSuggestFillTrimLeft(topPattern),
-      this._computeSuggestFillTrimRight(bottomPattern)
-    ]);
-    return fillOkForLeft && fillOkForRight && fillOkForTop && fillOkForBottom;
-  }
-
   async _findSuggestions1(pattern) {
     return await this._findSuggestionsHelper(pattern);
   }
@@ -111,31 +96,46 @@ exports.SuggestionsLists = class SuggestionsLists {
     return lettersSet;
   }
 
-  async _computeSuggestFillTrimLeft(pattern) {
+  async _suggestFill(board) {
+    if (! board.canSuggestFill) return false;
+    const leftPattern = computeHorizontalPattern(board, leftBound(board), board.activeColumn);
+    const rightPattern = computeHorizontalPattern(board, board.activeColumn, rightBound(board));
+    const topPattern = computeVerticalPattern(board, topBound(board), board.activeRow);
+    const bottomPattern = computeVerticalPattern(board, board.activeRow, bottomBound(board));
+    const [fillOkForLeft, fillOkForRight, fillOkForTop, fillOkForBottom] = await Promise.all([
+      this._suggestFillTrimLeft(leftPattern),
+      this._suggestFillTrimRight(rightPattern),
+      this._suggestFillTrimLeft(topPattern),
+      this._suggestFillTrimRight(bottomPattern)
+    ]);
+    return fillOkForLeft && fillOkForRight && fillOkForTop && fillOkForBottom;
+  }
+
+  async _suggestFillTrimLeft(pattern) {
     if (lastCharacter(pattern) !== '@') throw new Error('Expected @ as last character');
     const subpatterns = computeSubpatternsTrimLeft(pattern);
     if (subpatterns.includes('@')) return true;
     for (const subpattern of subpatterns) {
       const regExpPattern = trimLastCharacter(subpattern);
-      const hasMatch = await this._hasMatchInDictionary(regExpPattern);
+      const hasMatch = await this._hasMatch(regExpPattern);
       if (hasMatch) return true;
     }
     return false;
   }
 
-  async _computeSuggestFillTrimRight(pattern) {
+  async _suggestFillTrimRight(pattern) {
     if (firstCharacter(pattern) !== '@') throw new Error('Expected @ as first character');
     const subpatterns = computeSubpatternsTrimRight(pattern);
     if (subpatterns.includes('@')) return true;
     for (const subpattern of subpatterns) {
       const regExpPattern = trimFirstCharacter(subpattern);
-      const hasMatch = await this._hasMatchInDictionary(regExpPattern);
+      const hasMatch = await this._hasMatch(regExpPattern);
       if (hasMatch) return true;
     }
     return false;
   }
 
-  async _hasMatchInDictionary(regExpPattern) {
+  async _hasMatch(regExpPattern) {
     const regExp = new RegExp(`^${regExpPattern}$`);
     const length = regExpPattern.length;
     const words = await this.app.service('words').find({ length });
