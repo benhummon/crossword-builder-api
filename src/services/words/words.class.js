@@ -15,7 +15,8 @@ exports.Words = class Words {
     try {
       await this._ensureWordsLoaded();
       const { length } = params;
-      if (! this._isValidLength(length)) return [];
+      if (! isNumber(length)) throw Error('Words service find() expects a length');
+      if (length < minWordLength || length > maxWordLength) return [];
       return this._wordsOfLength(length);
     } catch (error) {
       console.error('Error occurred in find method of words service:', error);
@@ -23,12 +24,6 @@ exports.Words = class Words {
   }
 
   // END OF STANDARD METHODS
-
-  _isValidLength(length) {
-    if (! isNumber(length)) return false;
-    if (length < minWordLength || length > maxWordLength) return false;
-    return true;
-  }
 
   _ensureWordsLoaded() {
     if (this._loadingWordsPromise) return this._loadingWordsPromise;

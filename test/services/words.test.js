@@ -10,7 +10,6 @@ describe('"words" service', () => {
       'Registered the service'
     );
   });
-
   it('finds words of length two', async () => {
     const service = app.service('words');
     const results = await service.find({ length: 2 });
@@ -20,7 +19,6 @@ describe('"words" service', () => {
       'There are many words of length two'
     );
   });
-
   it('finds words of length one', async () => {
     const service = app.service('words');
     const results = await service.find({ length: 1 });
@@ -35,24 +33,20 @@ describe('"words" service', () => {
       'The words of length one are just the letters of the alphabet'
     );
   });
-
   it('finds no words of length zero', async () => {
     const service = app.service('words');
     const results = await service.find({ length: 0 });
     assert.equal(
       results.length,
-      0,
-      'There are no words of length zero'
+      0
     );
   });
-
-  it('finds no words when length is not specified correctly', async () => {
+  it('finds no words with a very large length', async () => {
     const service = app.service('words');
-    const results = await service.find({ length: 'a' });
+    const results = await service.find({ length: 400 });
     assert.equal(
       results.length,
-      0,
-      'Found no words'
+      0
     );
   });
 });
