@@ -41,7 +41,7 @@ function topBound(board) {
 
 function bottomBound(board) {
   let j = board.activeRow;
-  while (j + 1 < board.width && board.squareValueAt(board.activeColumn, j + 1) !== filledSquareCharacter) {
+  while (j + 1 < board.height && board.squareValueAt(board.activeColumn, j + 1) !== filledSquareCharacter) {
     j++;
   }
   return j;

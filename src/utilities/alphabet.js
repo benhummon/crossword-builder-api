@@ -14,15 +14,10 @@ function buildUppercaseAlphabet() {
   );
 }
 
-function isLetter(string) {
-  return /^[A-Za-z]$/.test(string);
-}
-
 const filledSquareCharacter = '~';
 
 module.exports = {
   buildLowercaseAlphabet,
   buildUppercaseAlphabet,
-  isLetter,
   filledSquareCharacter
 };

@@ -27,7 +27,7 @@ function computeSubpatternsTrimRight(pattern) {
     if (pattern[i] === '.') trimPoints.push(i);
   }
   trimPoints.push(pattern.length);
-  return trimPoints.reverse().map(
+  return trimPoints.map(
     trimPoint => pattern.substring(0, trimPoint)
   );
 }
