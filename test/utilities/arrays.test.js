@@ -25,18 +25,21 @@ describe('"arrays" utility', () => {
   describe('arrayShallowEquivalent()', () => {
     it('says that equal arrays are equivalent', () => {
       const a = ['a', 'b', 'c'];
-      assert.ok(
-        arrays.arrayShallowEquivalent(a, a)
+      assert.equal(
+        arrays.arrayShallowEquivalent(a, a),
+        true
       );
     });
     it('correctly identifies equivalent, non-equal arrays', () => {
-      assert.ok(
-        arrays.arrayShallowEquivalent([1, 2, 3], [1, 2, 3])
+      assert.equal(
+        arrays.arrayShallowEquivalent([1, 2, 3], [1, 2, 3]),
+        true
       );
     });
     it('correctly identifies non-equivalent arrays', () => {
-      assert.ok(
-        ! arrays.arrayShallowEquivalent([1, 2, 3], [1, 3, 2])
+      assert.equal(
+        arrays.arrayShallowEquivalent([1, 2, 3], [1, 3, 2]),
+        false
       );
     });
   });
